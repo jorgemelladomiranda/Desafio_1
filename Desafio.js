@@ -1,52 +1,91 @@
+const fs = require('fs');
+
 class ProductManager {
-    constructor() {
-        this.products = []
-        this.idCounter = 1
-    }
-    
-    getProducts = () => {
-        return this.products
-    }
-
-    getProductById = (id) => {
-        const product = this.products.find(elem => elem.id === id)
-        if (!product) {
-            console.error("Producto no se encuentra en el listado")
-            return
-        }
-        
-        return product
-    }
-
-    addProduct = (title, description, price, thumbnail, code, stock) => {
-        
-        if (!title || !description || !price || !thumbnail || !code || !stock) {
-            console.error("Faltan datos del producto");
-            return
-        }
-        
-        if (this.products.find(elem => elem.code === code)) {
-            console.error("Codigo de producto ya existe");
-            return
-        }
-        
-        const id = this.idCounter
-        this.products.push({
-            id,
-            title,
-            description,
-            price,
-            thumbnail,
-            code,
-            stock
-        })
-        this.idCounter++
-    }
+    constructor(path) {
+    this.path = path;
+    this.nextId = 1;
 }
 
-const productManager = new ProductManager()
-console.log('Metodo getProducts: ',productManager.getProducts())
-productManager.addProduct('Completo', 'Italiano', 1500, 'https://m.elmostrador.cl/media/2021/05/completo.jpg', '2468', 300)
-console.log('Metodo getProducts: ',productManager.getProducts())
-productManager.addProduct('Churrasco', 'Luco', 3000, 'https://n9z4u8f2.rocketcdn.me/wp-content/uploads/2015/06/Barros-luco01.jpg', '2468', 100)
-console.log('Metodo getProductById: ',productManager.getProductById(1))
+    addProduct(product) {
+    product.id = this.nextId++;
+    fs.readFile(this.path, 'utf8', (error, data) => {
+        if (error) throw error;
+        let products = JSON.parse(data);
+        products.push(product);
+        fs.writeFile(this.path, JSON.stringify(products), (error) => {
+        if (error) throw error;
+        });
+    });
+}
+
+    getProducts() {
+    return new Promise((resolve, reject) => {
+        fs.readFile(this.path, 'utf8', (error, data) => {
+        if (error) reject(error);
+        resolve(JSON.parse(data));
+        });
+    });
+}
+
+    getProductById(id) {
+    return new Promise((resolve, reject) => {
+        fs.readFile(this.path, 'utf8', (error, data) => {
+        if (error) reject(error);
+        let products = JSON.parse(data);
+        let product = products.find(p => p.id === id);
+        resolve(product);
+        });
+    });
+}
+
+    updateProduct(id, product) {
+    return new Promise((resolve, reject) => {
+        fs.readFile(this.path, 'utf8', (error, data) => {
+        if (error) reject(error);
+        let products = JSON.parse(data);
+        let productIndex = products.findIndex(p => p.id === id);
+        products[productIndex] = { ...products[productIndex], ...product };
+        fs.writeFile(this.path, JSON.stringify(products), (error) => {
+        if (error) reject(error);
+        resolve();
+        });
+    });
+    });
+}
+
+deleteProduct(id) {
+    return new Promise((resolve, reject) => {
+    fs.readFile(this.path, 'utf8', (error, data) => {
+        if (error) reject(error);
+        let products = JSON.parse(data);
+        products = products.filter(p => p.id !== id);
+        fs.writeFile(this.path, JSON.stringify(products), (error) => {
+        if (error) reject(error);
+        resolve();
+        });
+    });
+    });
+}
+}
+
+module.exports = ProductManager;
+
+const productsPath = './productos.json';
+const products = new ProductManager(productsPath);
+
+const getAllProducts = products.getProducts().then(response => console.log(response));
+console.log(getAllProducts);
+
+const findProductById = products.getProductById(4).then(response => console.log(response));
+console.log(findProductById);
+
+
+// MODIFICAR PRODUCTOS
+const datosProducto = {
+title: "Cocinilla camping",
+description: "Cocinilla 3 plato para camping",
+price: 18000,
+stock: 12
+}
+const updateProduct = products.updateProduct(4,datosProducto).then(response => console.log(response))
+console.log(updateProduct)
